@@ -1,0 +1,394 @@
+---
+title: "Kaggle_project1_Titanic: Learning from Disaster"
+author: "Ioana Dragomirescu"
+date: "April 3, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Practice Skills: Binary Classification, R
+
+According to Data Science Solutions book the workflow should cover:
+
+1. Question or problem definition
+
+2. Acquire training and testing data -have a first look
+
+3. Prepare and clean the data
+
+4. Analyze, identify patterns, explore the data
+
+5. Model, predict and solve the problem
+ 
+6. Visualize, report and present the problem solving steps and the final solution
+ 
+7. Submit the results
+
+
+## 1.   Question or problem definition 
+
+### 1. 1. Sad story behind data:
+
+<div style="text-align: justify"> 
+RMS Titanic was in 1912 the most amasingly large British Ship, one of the three Olympic class ocean liners operated by the White Star Line. It sank in the North Atlantic Ocean in the early morning of 15 April 1912, after colliding with an iceberg around 11:40 p.m. during her maiden voyage from Southampton to New York City.  Books were written about this tragedy, romantic films or documentary were made, behind the scenes stories were told.  
+
+Starting his journey, Titanic had 2224 peoples on board. Everything in first class was luxurious, in fact that was the idea: to distinguish the boat from other english liners through luxurious services. This is way many famous people were on board:  the American millionaire John Jacob Astor IV and his wife Madeleine Force Astor, industrialist Benjamin Guggenheim, Macy's owner Isidor Straus and his wife Ida, Denver millionairess Margaret "Molly" Brown, Sir Cosmo Duff Gordon and his wife, couturière Lucy (Lady Duff-Gordon). Also aboard the ship were the White Star Line's managing director J. Bruce Ismay and Titanic's designer Thomas Andrews (who by the way died in this disaster).  But only 833 were First Class Passengers the rest 614 in Second Class and 1,006 in Third Class, all for a capacity of 2,453.  It clearly had advanced safety features such as watertight compartments and remotely activated watertight doors, however there it only carried enough lifeboats for 1,178 people. 
+
+The ship left Southampton on 10 April 1912, it called at Cherbourg in France and Queenstown in Ireland and then headed west to New York. On 14 April, four days into the crossing and about 375 miles (600 km) south of Newfoundland, she hit an iceberg at 11.40 p.m. ship's time. The collision caused the ship's hull plates to buckle inwards along her starboard (right) side and opened five of her sixteen watertight compartments to the sea; the ship gradually filled with water. Meanwhile, passengers and some crew members were evacuated in lifeboats, many of which were launched only partially loaded. At 2.20 a.m., the ship brooke apart and foundered, one thousand people were still aboard. Just under two hours after Titanic sank, RMS Carpathia arrived at the scene, where she brought aboard an estimated 705 survivors.
+
+
+One of the most controversial issues examined by the inquiries was the role played by SS Californian, which had been only a few miles from Titanic but had not picked up her distress calls or responded to her signal rockets. Californian had warned Titanic by radio of the pack ice that was the reason Californian had stopped for the night, but was rebuked by Titanic's senior wireless operator, Jack Phillips.</div>
+
+ So let's recap the data without any emotion:
+
+  * Started his voyage on April 10, 1912
+  * 2224 peoples on board, 1502 died
+  * 20 lifeboats, only enough for 1178 people
+  * Titanic hit an iceberg on 14.04 at 11.40 p.m. 
+  * 2.20 am, the ship brooke apart and foundered
+  * 2 hours later SS Carpathia saves an estimated number of 705 survivers
+  * The wreck of Titanic was discovered in 1985
+
+We used Wikipedia as bibliographical reference for the story above.
+
+### 1.2. Kaggle Competition Description
+
+<div style="text-align: justify"> <i>The sinking of the RMS Titanic is one of the most infamous shipwrecks in history.  On April 15, 1912, during her maiden voyage, the Titanic sank after colliding with an iceberg, killing 1502 out of 2224 passengers and crew. This sensational tragedy shocked the international community and led to better safety regulations for ships.
+
+One of the reasons that the shipwreck led to such loss of life was that there were not enough lifeboats for the passengers and crew. Although there was some element of luck involved in surviving the sinking, some groups of people were more likely to survive than others, such as women, children, and the upper-class.
+
+
+In this challenge, we ask you to complete the analysis of what sorts of people were likely to survive. In particular, we ask you to apply the tools of machine learning to predict which passengers survived the tragedy.</i> </div>
+
+## 2. Acquire training and testing data
+
+__Download the data (https://www.kaggle.com/c/titanic/data).__ 
+
+The data has been split into two groups:
+
+ 1. training set (train.csv) 
+ 2. test set (test.csv) \\
+ 
+<div style="text-align: justify"><i> The test set should be used to see how well your model performs on unseen data. For the test set, we do not provide the ground truth for each passenger. It is your job to predict these outcomes. For each passenger in the test set, use the model you trained to predict whether or not they survived the sinking of the Titanic.</i></div>
+
+We will need particular libraries/packages which have to be installed.
+```{r}
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(Matrix))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(e1071))
+suppressPackageStartupMessages(library(party))
+suppressPackageStartupMessages(library(randomForest))
+suppressPackageStartupMessages(library(rpart))
+suppressPackageStartupMessages(library(knitr))
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(rpart))
+suppressPackageStartupMessages(library(rpart.plot))
+suppressPackageStartupMessages(library(rattle))
+suppressPackageStartupMessages(library(lattice))
+suppressPackageStartupMessages(library(PerformanceAnalytics))
+
+set.seed(3433)
+setwd('C:/Users/ss_cr/')
+
+# Import the train and test data from Computer
+
+training <- read.csv(file="train.csv",na.strings=c("NA","#DIV/0!",""), header=TRUE)
+
+testing1 <- read.csv(file="test.csv",na.strings=c("NA","#DIV/0!",""),  header=TRUE)
+
+is.data.frame(training)
+is.data.frame(testing1)
+
+dim(training)
+dim(testing1)
+```
+The training set has 891 entries with 12 predictors and the test set has 418 entries, which means that exactly 418 predictions should be submitted in a csv file  plus a header row. 
+
+In the testing database the Survived/Died column is missing.
+
+### 3. Cleaning and Preparing the Data
+
+You are now cleaning the data by doing the following:
+
+1.  Added missing Age and Fare values
+
+2. Converted categorical variables to dummy variables
+
+3. Created new variables to better fit a model
+
+
+
+```{r}
+
+# missing age
+
+training$Fare[is.na(testing1$Fare)] <- mean(testing1$Fare, na.rm=TRUE)
+training$Age[is.na(training$Age)] <- median(training$Age, na.rm=TRUE)
+
+```
+In the cabin variable we find a lot of missing values, near 77% of the registers, so we won't use it. Then, in the ticket variable, at first glance, the  anything relevant so it will be removed too.
+
+```{r}
+print(training$Cabin)
+print(training$Ticket)
+training$Cabin<-NULL
+training$Ticket<-NULL
+
+```
+We add a new column with the Title extracted from the Name column. This feature enginnering process will add additional information for each passenger regarding the social status of ethe passenger. Then we group all titles beside the classical one in only one category.
+
+Many variables are categorical and we have to transform them to numeric using factor.
+```{r}
+training$Title <- gsub('(.*, )|(\\..*)', '', training$Name)
+different_titles<-c('Don', 'Rev','Capt', 'Col', 'Dr','Major', 'Jonkheer','Sir', 'Lady', 'the Countess' )
+
+training$Title[training$Title %in% different_titles]  <- 'Titles'
+
+training$Title<-as.factor(training$Title)
+
+training$Sex<-as.factor(training$Sex)
+
+levels(training$Sex)<-c("Female", "Male")
+
+training$Survived<-factor(training$Survived, levels=c(1,0))
+
+levels(training$Survived)<-c("Survived","Died")
+```
+
+Adding a new column with AgeG category: Child (<16), Young (16,25), Adult (25,55), Old (>55)
+```{r}
+
+training$AgeG <- training$Age
+training$AgeG <- ifelse(training$AgeG<=16, "Child", ifelse(training$AgeG<=25, "Young", ifelse(training$AgeG<=55, "Adult", ifelse(training$AgeG>55, "Old", "UnknownAge"))))
+
+
+```
+
+### 4. Analyze, identify patterns, explore the data
+
+Let's explore the data frame, have a first look at the passenger distribution
+
+```{r}
+table(training$Sex, training$Title)
+```
+
+As you can see there were at least 20 male wearing a title on Titanic.
+
+```{r}
+table(training$Sex, training$AgeG)
+``` 
+
+In the training set, the number of adults men was almost twice the number of adult women. The situation is almost the same for young passengers, yet the number of children was more ar less the same. However, there were much more old men (31) on the Titanic compared to women(9). 27 of those old men died, 8 old women survived.
+```{r}
+table(training$AgeG,training$Sex, training$Survived)
+```
+Clearly, most people were travelling in second and third class.The first class was in fact the only class where the number of people surviving was larger then the number of people dying.
+```{r}
+table(training$Pclass, training$Survived)
+table(training$AgeG, training$Survived)
+```
+Most of the people that died in the disaster were young people, older than 16 and adults, younger than 55.
+
+May be the title did not count if you want to get on a boat!
+```{r}
+table(training$Title, training$Survived)
+```
+
+This analysis of the data can be also done by sumarizing some of the passengers characteristics and also visualizing some of the fact.
+Data Analysis: according to Age variable
+```{r}
+summary(training$Age)
+```
+We can see that for the variable Age there are 117 missing values. We can consider filling this NA values with the median value of all ages.
+
+We can analyze the age distribution of all passengers using a histogram
+```{r}
+hist(training$Age, col=c("red"), main="Age Distribution", xlab="Age")
+
+```
+
+We can also use ggplot2 to visualize the  Age distribution compared with the survived atribute 
+```{r}
+
+ggplot(training[1:891,], aes(x = Age, fill = factor(Survived))) +
+  geom_bar(stat='count') 
+```
+
+The plot is not very clear, so we can use the AgeG predictor instead.
+```{r}
+
+mosaicplot(training$AgeG ~ training$Survived, main="Passenger Survival by Age",
+           color=c("#8dd3c3", "#fb8073"), shade=FALSE, xlab="", ylab="",
+           off=c(0), cex.axis=1.1)
+#dev.off()
+```
+
+Data Analysis : according to Sex variable
+```{r}
+summary(training$Sex)
+
+barplot(table(training$Sex), col=c("green"), main="Sex Distribution among Passanger", xlab="Sex")
+
+
+mosaicplot(training$Sex ~ training$Survived, main="Passenger Survival by Sex",
+           color=c("#8dd3c7", "#fb8072"), shade=FALSE,  xlab="", ylab="",
+           off=c(0), cex.axis=1.4)
+dev.off()
+```
+We can see that being a women clearly increased the chances of surviving! Almost 75% of women survived and almost 75% of men died.
+You can also see that being a child influenced the rate of surviving.
+
+Data Analysis : according to class variable
+
+Most of the passengers were travelling in 3rd class!
+```{r}
+summary(training$Pclass)
+
+hist(training$Pclass, col=c("blue"), main="Class Distribution", xlab="class")
+table(training$Parch, training$Survived)
+```
+
+It looks like the nb of Siblings has an influence on the death rate.
+```{r}
+table(training$SibSp, training$Survived)
+```
+
+
+We are now ready to build a model which will make predictions!
+
+### 5. Model, predict and solve the problem 
+
+Partitioning the data into training and testing data: Data are divided into training data (60%) and testing data (40%).
+
+```{r}
+inTrain <- createDataPartition(y=training$Survived, p=0.6, list=FALSE)
+myTraining <- training[inTrain, ]; 
+myTesting <- training[-inTrain, ]
+dim(myTraining); dim(myTesting)
+```
+
+# Building the model - A model with a continuous response- ANOVA
+
+We are presenting here more model that could be build fore predictions.
+
+The rpart function allows the fitting of a classification tree.
+The minsplit value which determines the minimal number of observations per leaf that must exist in a node in order for a split to be attempted is here 20 (the default value). The complexity parameter responsible for saving computer time is 0.02. With anova splitting this means that the overall R-squared must increase by 0.02 at each step.
+
+Each node shows
+
+- the predicted value,
+
+- the percentage of observations in the node.
+
+
+```{r}   
+Fit1 <- rpart(Survived ~ Sex+Age+Pclass+Fare+SibSp, data = myTraining, method="anova", control = rpart.control(minsplit=20, cp=0.02), )
+summary(Fit1)
+
+fancyRpartPlot(Fit1)
+```
+# Building the model - A model with binary response
+
+Each node shows
+
+- the predicted class (died or survived),
+
+- the predicted probability of survival,
+
+- the percentage of observations in the node
+
+```{r}
+Fit2 <- rpart(Survived ~ Sex+Age+Pclass+Fare+SibSp, data = myTraining,  cp=0.02)
+rpart.plot(Fit2)
+
+```
+
+# Building the model- gbm  and random forests and compare
+
+The trainControl functions regarding the computational nuances of the train function will considered the cross validation method and the number of k-folds is 3. 
+```{r}
+objControl <- trainControl(method="cv", number=3)
+
+Fit3 <- train(Survived ~ Sex+Age+Pclass+Fare+SibSp, trControl=objControl, data = myTraining, method="gbm", verbose=FALSE, metric="Accuracy", train.fraction=0.5)
+
+summary(Fit3)
+
+
+Fit4<-train(Survived ~ Sex+Age+Pclass+Fare+SibSp, trControl=objControl, data = myTraining, verbose=FALSE, metric="Accuracy",method="rf")
+summary(Fit4)
+rValues34<-resamples(list(rf=Fit4,gbm=Fit3))
+summary(rValues34)
+bwplot(rValues34,metric="Accuracy", main="rf versus gbm")
+```
+
+# Building the prediction
+
+
+The accuracy of the random forest model is larger.
+```{r}
+predict4 <- predict(Fit4, newdata=myTesting)
+predict3 <- predict(Fit3, newdata=myTesting)
+identical(levels(predict4),levels(myTesting$Survived))
+levels(predict4)
+levels(myTesting$Survived)
+```
+#Analyzing the error for the random forest model
+
+There are two predicted classes: Survived and Died. The classifier made a total of 356 predictions (dim of myTesting). The classifier predited for th random forest model: Survived 134, Died 222. In reality 133 Survived and 223 Died. The accuracy, which measure how often the classifier is correct is in this case: 0.823.
+
+```{r}
+CF4<-confusionMatrix(predict4, myTesting$Survived)
+CF3<-confusionMatrix(predict3, myTesting$Survived)
+CF3
+CF4
+```
+Accuracy, sensitivity, specificity can be analysed. These are the metrics corresponding to maximum accuracy that could be achieved by the model. We will  use the threshold accuracy value while scoring the model in the test set.
+
+In my oppinion both the gbm and the random forst model can be used.
+
+# Use model 4 to predict the test data set
+
+Cleaning the test data set
+
+```{r}
+dim(testing1)
+testing1$Title <- gsub('(.*, )|(\\..*)', '', testing1$Name)
+different_titles_test<-c('Don', 'Rev','Capt', 'Col', 'Dr','Major', 'Jonkheer','Sir', 'Lady', 'the Countess' )
+
+testing1$Title[testing1$Title %in% different_titles_test]  <- 'Titles'
+
+testing1$Fare[is.na(testing1$Fare)] <- mean(testing1$Fare, na.rm=TRUE)
+testing1$Age[is.na(testing1$Age)] <- median(testing1$Age, na.rm=TRUE)
+testing1$AgeG <- testing1$Age
+testing1$AgeG <- ifelse(testing1$AgeG<=16, "Child", ifelse(testing1$AgeG<=25, "Young", ifelse(testing1$AgeG<=55, "Adult", ifelse(testing1$AgeG>55, "Old", "UnknownAge"))))
+
+
+
+testing1$Title<-as.factor(testing1$Title)
+
+testing1$Sex<-as.factor(testing1$Sex)
+
+levels(testing1$Sex)<-c("Female", "Male")
+
+
+testing1$Sex<-as.factor(testing1$Sex)
+
+testing1$Cabin<-NULL
+testing1$Ticket<-NULL
+print(testing1)
+
+testing1$Survived <- predict(Fit4, newdata=testing1)
+testing1$Survived<-ifelse(testing1$Survived=="Survived",1,0)
+
+```
+Writing the submission file!
+```{r}
+solution <- data.frame(PassengerID = testing1$PassengerId, Survived = testing1$Survived)
+write.csv(solution, file = "dragomirescu.csv", row.names = FALSE)
+```
+
+
